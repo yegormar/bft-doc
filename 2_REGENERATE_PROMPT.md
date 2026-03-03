@@ -1,0 +1,1 @@
+Validate ARCHITECTURE.md and CONTRACTS.md against current code. Update documents only if they are now incorrect.
