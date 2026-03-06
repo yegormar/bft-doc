@@ -80,7 +80,7 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 - **Purpose:** Build prompts and call Ollama to generate one scenario-based interview question that probes a set of dimensions. Optionally assess answers and get next question (legacy path). Validate and normalize LLM response for nextQuestion shape.
 - **Public interface:** `generateScenarioQuestion(dimensionSet, askedQuestionTitles, answers, preSurveyProfile)` → `{ assessmentSummary?, nextQuestion }`. nextQuestion has title, optional description, type, options; id is not returned (assigned by assessmentService). Optional: `assessAndGetNextQuestion(answers, lastAnswerText, preSurveyProfile)` for legacy flow.
-- **Invariants:** nextQuestion type is single_choice or multi_choice; options are non-empty with text and value; validation may strip invalid id. Pre-survey profile is used to build tailoring block (audience, style, tone) appended to system prompt. Personality clusters loaded from conf/personality_clusters.json.
+- **Invariants:** nextQuestion type is single_choice or multi_choice; options are non-empty with text and value; validation may strip invalid id. Pre-survey profile is used to build tailoring block (audience, style, tone) appended to system prompt. Personality clusters loaded from src/data/personality_clusters.json.
 - **Internal vs external:** Prompt text and validation rules are internal. assessmentService depends on dimensionSet shape and return shape. Changing question schema breaks UI.
 - **Stability:** Evolving. Validation and prompt content may be tuned; contract with assessmentService must be preserved.
 
@@ -112,9 +112,9 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 - **Purpose:** Collect optional demographics and style/cluster answers; compute cluster profile; pass profile to main survey on completion. Persist progress in localStorage.
 - **Public interface:** PreSurveyWizard: `onComplete(profile)` with profile from `computeClusterProfile(questions, answers)`. Profile: `weights`, `dominant`, `secondaryTone`, `demographics`. Pre-survey questions from `src/data/pre_survey_questions.json`; structure includes intro_text, questions with id, type, options, scenario_clusters.
-- **Invariants:** Cluster weights from Q3 and Q4 only (Q4 weighted 2×); Q5 sets secondaryTone; Q1/Q2 set demographics. Optional question ids (e.g. 1, 2, 5) are hardcoded in wizard. Pre-survey state is not sent to API until user starts main survey (session create with preSurveyProfile).
+- **Invariants:** Pre-survey has 5 questions (Q1–Q5). Cluster weights from Q3 and Q4 only (Q4 weighted 2×); Q5 sets secondaryTone; Q1/Q2 set demographics. Tone is always default (friendly but straightforward; no tone question). No scenario-settings question. Pre-survey state is not sent to API until user starts main survey (session create with preSurveyProfile).
 - **Internal vs external:** Question set and weighting rules are in UI data and clusterProfile util. API expects preSurveyProfile on session create; shape must match what report and LLM expect (dominant, secondaryTone, demographics).
-- **Stability:** Evolving. Changing question ids or profile shape requires coordination with API and conf (personality_clusters).
+- **Stability:** Evolving. Changing question ids or profile shape requires coordination with API and src/data (personality_clusters).
 
 ---
 

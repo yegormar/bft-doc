@@ -24,6 +24,8 @@ Run once:
 cd bft-api && npm test
 ```
 
+**Port:** The test script sets `PORT=39391` so tests do not bind to your dev server port. You can run `npm test` while the dev server is running on another port (e.g. 3000). If you run a single test file (e.g. `node --test test/assessmentService.test.js`), set `PORT=39391` in the environment or the test will use your `.env` PORT and may conflict with a running server.
+
 Run only question-generation-related tests:
 
 ```bash
@@ -42,6 +44,9 @@ cd bft-api && node --test test/questionGeneration/*.test.js test/config/question
 | **config/questionGeneration.js** | Missing or empty env → throw; invalid number → throw; valid → `{ timeoutMs }`. | None. |
 | **index.js** (requestQuestion) | With store seeded: returns question (`source: 'store'` or `'llm'`). With empty store: returns `null` or LLM question. Config required. | LLM-success path is exercised when a real LLM is configured and responds; tests accept either outcome. FIFO ordering through index is covered by queue unit tests only. |
 | **assessmentService.js** | getNextQuestion: completion; store or LLM question; used-set when store used; MAIN_QUESTIONS fallback when component returns null; session health; progress. | Tests accept both “LLM on” and “LLM off” so they pass in either environment. |
+| **ollamaInterview.js** (prompts) | Step 1 system prompt includes the dimension name/ID; step 2 system prompt includes the dimension being scored; step 1 user prompt includes dimension when primaryDimension is provided. | Prevents the bug where a step1 template without placeholders omitted the dimension entirely. |
+
+**Why the dimension-in-prompt bug was missed:** The step1 logic only replaced placeholders (`{{DIMENSION_NAME}}`, etc.). The tests and default env used `conf/scenario_step1.txt`, which has those placeholders, so the dimension always appeared. When a different template without placeholders was used (e.g. `scenario_step1_instructions.txt`), no replacement ran and the prompt never stated which trait/value was being assessed. There were no tests that asserted "the prompt contains the dimension name/ID" regardless of template. The new tests assert exactly that so any regression (or a template without placeholders) is caught.
 
 ---
 

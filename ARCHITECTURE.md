@@ -58,7 +58,7 @@
 │                                        │                                      │
 │  ┌────────────────────────────────────▼────────────────────────────────────┐ │
 │  │ config/index.js, config/llm.js (env-only; fail-fast on invalid/missing) │ │
-│  │ conf/*.txt (prompt files), conf/personality_clusters.json               │ │
+│  │ conf/*.txt (prompt files), src/data/personality_clusters.json           │ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -77,9 +77,9 @@
 | Controllers | `src/controllers/*` | Parse request, validate session exists, call single service, send JSON response. No business logic. |
 | Services  | `src/services/*`   | Business logic: sessions (CRUD, in-memory), assessment (answers, coverage, next-question generation, progress), report (template, LLM synthesis, cache). |
 | Lib       | `src/lib/*`       | Ollama chat client; interview prompts and scenario-question generation; report profile/hybrid/recommendations synthesis; report section keys. |
-| Data      | `src/data/*`      | Assessment model (aptitudes, traits, values, skills, ai_relevance_ranking) and loader; JSON files only. |
+| Data      | `src/data/*`      | Assessment model (aptitudes, traits, values, skills, ai_relevance_ranking, personality_clusters) and loader; JSON files only. |
 | Middleware | `src/middleware/*` | Request logging, 404, global error handler. |
-| Conf      | `conf/*`          | LLM prompt files (paths from env), personality_clusters.json. Not application config. |
+| Conf      | `conf/*`          | LLM prompt files (paths from env). Not application config. |
 
 ### bft-ui
 

@@ -48,6 +48,13 @@ If `scenarioBatches.json` is missing or `batches` is empty, the service falls ba
 
 ---
 
+## Step 2 and anti-telegraphing
+
+When choosing the best of the 3 scenarios, the step 2 LLM is instructed to prefer scenarios that do not telegraph what is being measured (no dimension names or obvious synonyms in title, description, or options). See `bft-api/conf/scenario_step2.txt`.
+
+
+---
+
 ## Rank question type
 
 - **Meaning:** The user **orders** the options from “most like me” to “least like me”. The submitted value is an **ordered array** of option `value` strings (e.g. `["a", "c", "b"]`).
