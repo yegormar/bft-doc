@@ -1,17 +1,18 @@
 # Scenario batches, design instructions, and rank questions
 
-This document describes the batch-based interview flow, the scenario design instructions used for LLM-generated questions, and the **rank** question type.
+This document describes the batch-based interview flow (reserved for future use), the scenario design instructions used for LLM-generated questions, and the **rank** question type.
 
 ---
 
-## Scenario batches (offline preparation)
+## Scenario batches (future or alternate flow)
 
 - **File:** `bft-api/src/data/scenarioBatches.json`
-- **Purpose:** Predefined batches of traits and values (2–3 dimensions per batch). During the interview, the API selects one batch at a time to request a single scenario question that probes those dimensions together. This keeps scenarios coherent and caps the interview at a fixed number of questions (default 20).
+- **Status:** The file is kept for future or alternate flow. The current app does **not** use batch selection; it uses per-dimension selection (`selectOneDimensionRandom`) and dimension-based completion. Batch selection and related state (`usedBatchIds`, batch-themed pregen) were removed to avoid dead code.
+- **Purpose (when wired):** Predefined batches of traits and values (2–3 dimensions per batch). The API would select one batch at a time to request a single scenario question that probes those dimensions together, with a fixed question cap (e.g. from `constraints.maxQuestionsPerInterview`).
 
-### How selection works
+### How selection would work (when implemented)
 
-1. **When batches exist:** `assessmentService` uses `selectNextBatch(state, model)` instead of per-dimension coverage selection.
+1. **When batches exist:** `assessmentService` would use a batch selector (e.g. `selectNextBatch(state, model)`) instead of per-dimension coverage selection.
 2. **Selection order:** Batches are chosen by (1) least times already used, (2) then by least total coverage of that batch’s dimensions. So under-covered batches are preferred.
 3. **State:** Each session tracks `usedBatchIds` (list of batch ids already served). Completion is based on **question count**, not per-dimension coverage.
 4. **Max questions:** When using batches, the effective maximum is `MAX_INTERVIEW_QUESTIONS` (env) or, if unset, `constraints.maxQuestionsPerInterview` from the batches file (20). The interview is complete when `questionIndex >= effectiveMax`.

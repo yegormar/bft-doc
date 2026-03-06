@@ -34,7 +34,7 @@ The project deliberately separates three layers:
 
 - **Skills (Trainable Capabilities)**  
   - Things you can deliberately practice and build: systems thinking, problem formulation, AI literacy, human–AI coordination, delegation and oversight, workflow orchestration, epistemic hygiene, cross‑domain synthesis, etc.  
-  - Each skill is evaluated with AI‑era **structural dimensions** (replication risk, leverage multiplier, authority pathway, scarcity durability, transferability, time‑to‑compound).
+  - Each skill is evaluated with AI‑era **structural dimensions** (AI resistance, leverage multiplier, authority pathway, scarcity durability, transferability, time‑to‑compound).
 
 The assessment uses **traits and values** to understand *who the person is and what they want*, and **skills** to answer *What should I invest in next?*.
 
@@ -75,7 +75,7 @@ At a conceptual level, the process works like this:
 
 3. **Mapping to skills**  
    - Traits and values point toward or away from specific **skill clusters** (e.g. systems & orchestration, AI governance, high‑touch human service, infrastructure‑coupled technical paths).  
-   - Each skill has attached structural scores (replication risk, leverage, authority, scarcity, transferability, time‑to‑compound) derived from the AI analysis.
+   - Each skill has attached structural scores (AI resistance, leverage, authority, scarcity, transferability, time‑to‑compound) derived from the AI analysis.
 
 4. **Building a skill stack**  
    - The system recommends a **stack**, not a single skill:

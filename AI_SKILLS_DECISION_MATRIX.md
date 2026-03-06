@@ -17,7 +17,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Core Question | Why It Matters |
 |------------|--------------|----------------|
-| **Replication Risk** | Can AI perform this skill autonomously at expert level within 10–15 years? | High exposure = long-term fragility. |
+| **AI Resistance** | How resistant is this skill to being performed autonomously by AI at expert level within 10–15 years? | Higher resistance reduces long-term fragility. |
 | **Leverage Multiplier** | Does this skill increase your ability to use AI or coordinate others? | Some skills amplify all other skills. |
 | **Authority Pathway** | Does mastering this skill position you to own decisions later? | Long-term security comes from decision ownership. |
 | **Scarcity Durability** | Is this skill structurally scarce (legal, embodied, relational, physical)? | Scarcity drives premium over time. |
@@ -28,9 +28,9 @@ Score each skill from **0–5** on each dimension.
 
 # 2. Scoring Scale (0–5)
 
-### Replication Risk
-- **0** = AI-resistant  
-- **5** = Easily replicated by AI  
+### AI Resistance
+- **0** = Easily replicated by AI  
+- **5** = AI-resistant  
 
 ### Leverage Multiplier
 - **0** = Standalone execution skill  
@@ -60,7 +60,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 4 |
+| AI Resistance | 1 |
 | Leverage Multiplier | 2 |
 | Authority Pathway | 1 |
 | Scarcity Durability | 1 |
@@ -75,7 +75,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 1 |
+| AI Resistance | 4 |
 | Leverage Multiplier | 5 |
 | Authority Pathway | 4 |
 | Scarcity Durability | 4 |
@@ -90,7 +90,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 2 |
+| AI Resistance | 3 |
 | Leverage Multiplier | 5 |
 | Authority Pathway | 4 |
 | Scarcity Durability | 4 |
@@ -105,7 +105,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 2 |
+| AI Resistance | 3 |
 | Leverage Multiplier | 4 |
 | Authority Pathway | 5 |
 | Scarcity Durability | 5 |
@@ -120,7 +120,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 1 |
+| AI Resistance | 4 |
 | Leverage Multiplier | 5 |
 | Authority Pathway | 3 |
 | Scarcity Durability | 3 |
@@ -135,7 +135,7 @@ Score each skill from **0–5** on each dimension.
 
 | Dimension | Score |
 |------------|--------|
-| Replication Risk | 1 |
+| AI Resistance | 4 |
 | Leverage Multiplier | 3 |
 | Authority Pathway | 3 |
 | Scarcity Durability | 5 |
@@ -149,7 +149,7 @@ Score each skill from **0–5** on each dimension.
 # 4. Skill Risk Profiles
 
 ## High-Risk Skill Investment
-- Replication Risk ≥ 4  
+- AI Resistance ≤ 1  
 - Leverage Multiplier ≤ 2  
 - Scarcity Durability ≤ 2  
 
@@ -160,7 +160,7 @@ Do not build long-term identity around these alone.
 ## Foundational Amplifier Skill
 - Leverage Multiplier ≥ 4  
 - Transferability ≥ 4  
-- Replication Risk ≤ 2  
+- AI Resistance ≥ 3  
 
 Prioritize early and deeply.
 
@@ -219,3 +219,9 @@ You are choosing:
 - What compounds  
 - What creates leverage  
 - What positions you toward authority instead of execution  
+
+---
+
+# 7. Implementation Note
+
+The app turns structural scores into a single "AI future relevance" (0-1) score using a configurable model so it can be tuned without code changes. That model is in **bft-api/src/data/ai_skills_ranking_model.json**: it lists the six dimensions (all "higher = more beneficial") and how they are combined (e.g. average). Edit that JSON to change weights, add dimensions, or adjust the ai_trend fallback values.
