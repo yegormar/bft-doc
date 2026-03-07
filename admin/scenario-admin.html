@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scenario store admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 1200px; }
+    section { margin-bottom: 1.5rem; }
+    label { display: inline-block; min-width: 6rem; margin-right: 0.5rem; }
+    input, select, button { margin-right: 0.5rem; margin-bottom: 0.5rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 0.35rem 0.5rem; text-align: left; }
+    th { background: #eee; }
+    .stats pre { background: #f5f5f5; padding: 0.5rem; overflow: auto; }
+    .error { color: #c00; }
+    .hash { font-family: monospace; font-size: 0.85em; }
+    .detail-row td { background: #f9f9f9; vertical-align: top; }
+    .detail-row pre { margin: 0; white-space: pre-wrap; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Scenario store admin</h1>
+  <p>Prep tool for scenario store: stats, list, delete. Set API base URL and ensure <code>BFT_ADMIN_ENABLED=1</code> on the API.</p>
+
+  <section>
+    <label for="base">API base URL</label>
+    <input id="base" type="text" value="" size="40" placeholder="http://localhost:3000" />
+  </section>
+
+  <section>
+    <h2>Stats</h2>
+    <button type="button" id="btnStats">Load stats</button>
+    <div class="stats" id="statsOut"></div>
+  </section>
+
+  <section>
+    <h2>List scenarios</h2>
+    <div>
+      <label for="profileKey">Profile key</label>
+      <select id="profileKey"><option value="">(all)</option></select>
+      <label for="dimType">Dimension type</label>
+      <select id="dimType">
+        <option value="">(all)</option>
+        <option value="aptitude">aptitude</option>
+        <option value="trait">trait</option>
+        <option value="value">value</option>
+        <option value="skill">skill</option>
+      </select>
+      <label for="dimId">Dimension ID</label>
+      <input id="dimId" type="text" placeholder="e.g. logical_analytical_reasoning" size="28" />
+      <label for="limit">Limit</label>
+      <input id="limit" type="number" value="50" min="1" max="500" style="width:5rem" />
+    </div>
+    <button type="button" id="btnList">Load list</button>
+    <div id="listOut"></div>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var baseInput = document.getElementById('base');
+      if (!baseInput.value.trim()) baseInput.value = window.location.origin;
+      loadProfileKeys();
+    });
+    function base() {
+      const b = document.getElementById('base').value.trim();
+      return b ? b.replace(/\/$/, '') : window.location.origin;
+    }
+    function api(path) {
+      return base() + '/api/admin' + path;
+    }
+
+    document.getElementById('btnStats').addEventListener('click', async () => {
+      const out = document.getElementById('statsOut');
+      out.innerHTML = 'Loading...';
+      try {
+        const r = await fetch(api('/scenarios/stats'));
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        const data = await r.json();
+        out.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+      } catch (e) {
+        out.innerHTML = '<span class="error">' + e.message + '</span>';
+      }
+    });
+
+    async function loadProfileKeys() {
+      try {
+        const r = await fetch(api('/scenarios/profile-keys'));
+        if (!r.ok) return;
+        const data = await r.json();
+        const sel = document.getElementById('profileKey');
+        sel.innerHTML = '<option value="">(all)</option>';
+        (data.profileKeys || []).forEach(pk => {
+          const opt = document.createElement('option');
+          opt.value = pk;
+          opt.textContent = pk;
+          sel.appendChild(opt);
+        });
+      } catch (_) {}
+    }
+
+    document.getElementById('btnList').addEventListener('click', async () => {
+      const out = document.getElementById('listOut');
+      out.innerHTML = 'Loading...';
+      const params = new URLSearchParams();
+      const profileKey = document.getElementById('profileKey').value;
+      const dimType = document.getElementById('dimType').value;
+      const dimId = document.getElementById('dimId').value.trim();
+      const limit = document.getElementById('limit').value;
+      if (profileKey) params.set('profileKey', profileKey);
+      if (dimType) params.set('dimensionType', dimType);
+      if (dimId) params.set('dimensionId', dimId);
+      if (limit) params.set('limit', limit);
+      try {
+        const r = await fetch(api('/scenarios?' + params.toString()));
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        const data = await r.json();
+        const scenarios = data.scenarios || [];
+        if (scenarios.length === 0) {
+          out.innerHTML = '<p>No scenarios match.</p>';
+          return;
+        }
+        let html = '<table><thead><tr><th>Profile key</th><th>Created</th><th>Title</th><th>Dimensions</th><th>Action</th></tr></thead><tbody>';
+        scenarios.forEach((s, i) => {
+          const dims = (s.dimensionSet || []).map(d => (d.dimensionType || '') + ':' + (d.dimensionId || '')).join(', ');
+          const titleEsc = (s.question && s.question.title ? s.question.title.slice(0, 60) : '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          html += '<tr><td class="hash">' + (s.profileKey || '') + '</td><td>' + (s.createdAt || '') + '</td><td>' + titleEsc + '</td><td>' + dims + '</td><td><button type="button" class="btnView" data-idx="' + i + '">View</button> <button type="button" data-pk="' + (s.profileKey || '') + '" data-hash="' + (s.contentHash || '').slice(0, 16) + '">Delete</button></td></tr>';
+          const detail = { title: (s.question && s.question.title) || '', description: (s.question && s.question.description) || '', type: (s.question && s.question.type) || '', options: (s.question && s.question.options) || [], dimensionSet: s.dimensionSet || [], assessmentSummary: s.assessmentSummary };
+          html += '<tr class="detail-row" id="detail-' + i + '" style="display:none"><td colspan="5"><pre>' + JSON.stringify(detail, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre></td></tr>';
+        });
+        html += '</tbody></table>';
+        out.innerHTML = html;
+        out.querySelectorAll('button.btnView').forEach(btn => {
+          btn.addEventListener('click', function () {
+            const row = document.getElementById('detail-' + btn.getAttribute('data-idx'));
+            row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+            btn.textContent = row.style.display === 'none' ? 'View' : 'Hide';
+          });
+        });
+        out.querySelectorAll('button[data-pk]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Delete this scenario?')) return;
+            const pk = btn.getAttribute('data-pk');
+            const hash = btn.getAttribute('data-hash');
+            try {
+              const r = await fetch(api('/scenarios/' + encodeURIComponent(pk) + '/' + encodeURIComponent(hash)), { method: 'DELETE' });
+              const data = await r.json().catch(() => ({}));
+              if (data.deleted) {
+                btn.closest('tr').remove();
+              } else {
+                alert('Delete failed: ' + (data.message || r.status));
+              }
+            } catch (e) {
+              alert('Error: ' + e.message);
+            }
+          });
+        });
+      } catch (e) {
+        out.innerHTML = '<span class="error">' + e.message + '</span>';
+      }
+    });
+
+    document.getElementById('base').addEventListener('change', loadProfileKeys);
+  </script>
+</body>
+</html>
