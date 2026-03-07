@@ -30,28 +30,13 @@ If `scenarioBatches.json` is missing or `batches` is empty, the service falls ba
 
 ---
 
-## Scenario design instructions (LLM prompt)
+## Scenario generation: three-step pipeline
 
-- **File:** `bft-api/conf/scenario_design_instructions.txt`
-- **Purpose:** Instructions so that scenario questions are **hard to reverse-engineer**: indirect probing, short descriptions (2–3 sentences), short options, and no dimension names or obvious synonyms in the question or options.
-
-### How it’s used
-
-- When generating a scenario question, `ollamaInterview.getScenarioSystemPrompt()` **prepends** the contents of this file to the base scenario system prompt. So the LLM receives both the design instructions and the response-format rules.
-- If the file is missing or unreadable, only the base prompt is used.
-
-### Main rules (from the file)
-
-- Describe a **concrete situation** (dilemma, trade-off); options = **what the person would do**, not self-labels.
-- **Do not** use dimension labels or obvious proxies in scenario or options.
-- **Length:** Scenario description 2–3 sentences; each option one short sentence or phrase.
-- **Response types:** Prefer `single_choice`, `multi_choice`, or `rank` as appropriate; the batch’s `preferredResponseType` is passed as a hint in the user prompt.
+- **File (Step 1):** `bft-api/conf/scenario_step1.txt`
+- **Purpose (Step 1):** Generate **one** scenario in **plain text only** (no JSON). Output uses headings TITLE:, SITUATION:, OPTIONS:. One of three strategies; no dimension names or obvious synonyms. **Step 2:** Critique then judge (two LLM calls in code; if judge says YES, retry Step 1 up to 3 times). **Step 3:** `scenario_step2.txt` converts the one scenario to JSON and assigns dimensionScores.
 
 ---
 
-## Step 2 and anti-telegraphing
-
-When choosing the best of the 3 scenarios, the step 2 LLM is instructed to prefer scenarios that do not telegraph what is being measured (no dimension names or obvious synonyms in title, description, or options). See `bft-api/conf/scenario_step2.txt`.
 
 
 ---
@@ -83,10 +68,11 @@ When choosing the best of the 3 scenarios, the step 2 LLM is instructed to prefe
 | File | Role |
 |------|------|
 | `bft-api/src/data/scenarioBatches.json` | Batch definitions (traits/values per batch, preferredResponseType, constraints). |
-| `bft-api/conf/scenario_design_instructions.txt` | Design instructions prepended to scenario system prompt. |
+| `bft-api/conf/scenario_step1.txt` | Step 1 creative prompt (one plain-text scenario). |
+| `bft-api/conf/scenario_step2.txt` | Step 3 format and score prompt (JSON + dimensionScores). |
 | `bft-api/conf/README.md` | Short pointer to both; wiring of scenario prompt. |
 | `bft-api/src/services/assessmentService.js` | `getScenarioBatches`, `selectNextBatch`, `getEffectiveMaxQuestions`, batch-based completion and progress. |
-| `bft-api/src/lib/ollamaInterview.js` | `getScenarioSystemPrompt()`, rank in `VALID_TYPES`, `buildScenarioUserPrompt(..., preferredResponseType)`. |
+| `bft-api/src/lib/ollamaInterview.js` | Three-step flow: `generateOneScenarioPassingCritique`, `runCritiquePass`, `formatAndScoreScenario`; rank in `VALID_TYPES`; `parseStep1PlainText`. |
 | `bft-ui/.../PreSurveyQuestion.jsx` | Rank UI (ordered list, up/down). |
 | `bft-ui/.../MainSurvey.jsx` | Rank initial value, submit payload, canProceed. |
 | `bft-ui/.../ResultsPage.jsx` | Display of rank answers (array as numbered list). |
