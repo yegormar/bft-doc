@@ -6,6 +6,7 @@ This runbook describes how to use the scenario prepopulation runner and admin AP
 
 - bft-api `.env` configured (see env.example), including:
   - `BFT_QUESTIONS_STORE_DIR` (required)
+  - `BFT_SCENARIO_STORE_FIRST` (required: `true` or `false`; use `false` for pregen so LLM runs first)
   - `MIN_SIGNAL_PER_DIMENSION` (required for interview config)
   - LLM and scenario prompt paths
 - Run commands from the **bft-api** directory so relative store path resolves correctly.
