@@ -87,7 +87,7 @@
 |----------|------------------------|----------------|
 | Entry    | `main.jsx`            | React root, ChakraProvider, BrowserRouter, theme. |
 | App      | `App.jsx`              | Layout, React Router routes (/, /discovery, /results, /recommendations, /about, 404). |
-| Pages    | `src/components/pages/*` | Top-level route components: Home, Discovery, Results, Recommendations, About, NotFound. |
+| Pages    | `src/components/pages/*` | Top-level route components: Home, Discovery, Results, Recommendations, About, NotFound. Home: `bft-doc/HOME_PAGE.md`. About: `bft-doc/ABOUT_PAGE.md`. |
 | Discovery | `PreSurveyWizard`, `MainSurvey`, `PreSurveyQuestion` | Pre-survey (local state + localStorage), then main survey (session + assessment/next loop). Pre-survey outcome (cluster profile) is sent to API on session create. |
 | Layout   | `Layout`, `Header`, `PageHero` | Shell and page headers. |
 | Services | `surveyApi.js`        | HTTP client for sessions, assessment answers/next, report. Base URL from env (empty in dev for proxy). |
