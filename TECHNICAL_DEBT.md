@@ -130,8 +130,38 @@ Known design flaws, compromises, and their impact. No speculation beyond what th
 
 ---
 
+## 10. Startup requires scenario files even in triangles mode
+
+**What:** runStartupChecks (startupChecks.js) always requires BFT_SCENARIO_STEP1_INSTRUCTIONS_FILE and BFT_SCENARIO_STEP3_INSTRUCTIONS_FILE to be set and the files to exist. It also requires personality_clusters.json, scenarioBatches.json, and other scenario-related data files. When BFT_ASSESSMENT_MODE=triangles, the scenario question generator and these prompt files are never used; next questions come only from dimension_triangles.json.
+
+**Why:** Startup checks were written for a single mode (scenarios); conditional checks per assessment mode were not added when triangles mode was introduced.
+
+**Impact:** A triangles-only deployment must still configure and provide scenario step files and related data. Extra env and files with no use in triangles mode; confusion and unnecessary failure if those files are missing.
+
+**Assessment:** Acceptable if both modes are always deployed together. Unacceptable for a minimal triangles-only production; then make scenario file and data checks conditional on getAssessmentMode() === 'scenarios'.
+
+**Priority:** Low for current use; high if triangles-only deployment is required.
+
+---
+
+## 11. Triangle data file path is hardcoded
+
+**What:** assessmentService.loadTriangles() reads from a path fixed relative to the module: path.join(__dirname, '..', 'data', 'dimension_triangles.json'). There is no env or config for the triangles file path.
+
+**Why:** Single known data file for triangle mode; no need for multiple or configurable paths initially.
+
+**Impact:** Cannot switch triangle set via config or use a different path without code change. Acceptable while there is one canonical dimension_triangles.json.
+
+**Assessment:** Acceptable. If multiple triangle sets or external paths are needed, add config and document.
+
+**Priority:** Low.
+
+---
+
 ## Priority order for addressing
 
 1. **High (if requirements demand):** In-memory state (persistence and/or shared store for sessions, assessment, report).
 2. **Medium (if API is public or strict):** Request body validation; structured error handling and codes.
-3. **Low:** Optional interview config defaults; ollama.js backward-compat; pre-survey optional IDs; report template vs payload documentation; duplicate session-id logic in UI; report cache key design; error message consistency.
+3. **Low:** Optional interview config defaults; ollama.js backward-compat; pre-survey optional IDs; report template vs payload documentation; duplicate session-id logic in UI; report cache key design; error message consistency; triangle file path hardcoded.
+
+4. **Conditional:** Startup scenario-file requirement in triangles-only (low if both modes deployed; high if triangles-only production).

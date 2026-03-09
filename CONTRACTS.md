@@ -6,20 +6,20 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 ## bft-api
 
-### Config (`config/index.js`, `config/llm.js`)
+### Config (`config/index.js`, `config/llm.js`, `config/assessment.js`, `config/questionGeneration.js`)
 
-- **Purpose:** Provide server and LLM configuration from environment. Ensure no required value is missing or invalid at startup.
-- **Public interface:** Exported object with `port`, `nodeEnv`, `corsOrigin` (index); LLM object with `provider`, `baseUrl`, `apiKey`, `model`, `temperature`, `maxTokens`, `topP`, `systemPromptFile`, getters for `enabled`, `getSystemPrompt()`, and report-related prompt getters (llm). Optional report prompt env vars; if set, file must exist.
-- **Invariants:** Process exits on missing/invalid required env. No code defaults for required vars. PORT in 1–65535; NODE_ENV in allowed set; CORS_ORIGIN non-empty; LLM provider ollama or ollama_cloud; prompt file paths must point to existing files when required.
-- **Internal vs external:** Config may change which env vars are required or add new optional ones. Callers must not assume default values for any required key.
-- **Stability:** Stable. Adding new optional env is allowed; removing or changing semantics of required vars is breaking.
+- **Purpose:** Provide server, LLM, assessment mode, and question-generation configuration from environment. Ensure no required value is missing or invalid at startup.
+- **Public interface:** index: `port`, `nodeEnv`, `corsOrigin`, `questionsStoreDir`, `feedbackFile`. llm: `provider`, `baseUrl`, `apiKey`, `model`, `temperature`, `maxTokens`, `topP`, `numCtx`, `think`, `thinkLevel`, report prompt file paths and getters, `checkupIntervalSec`, `enabled`. assessment: `getAssessmentMode()` (triangles | scenarios), `getPregenConfig()` (queueCap, refillThreshold; 0 when triangles), `getInterviewConfig()` (minSignalPerDimension, maxQuestions). questionGeneration: `getQuestionGenConfig()` (timeoutMs, storeFirst); loaded only when assessment mode is scenarios. config/ollama.js re-exports llm for backward compatibility.
+- **Invariants:** Process exits on missing/invalid required env. No code defaults for required vars. BFT_ASSESSMENT_MODE required (triangles or scenarios); when scenarios, pregen and interview env required; when triangles, pregen is 0. LLM report prompt files must exist when required. questionGeneration required only when mode=scenarios.
+- **Internal vs external:** Config may add optional env. Callers must not assume defaults for required keys.
+- **Stability:** Stable. Adding optional env is allowed; changing required vars or assessment modes is breaking.
 
 ---
 
 ### Session service (`src/services/sessionService.js`)
 
 - **Purpose:** Create, read, and update sessions in memory. Session is the root entity for assessment and report.
-- **Public interface:** `create(preSurveyProfile, clientId)` → session; `getById(id)` → session or null; `update(id, updates)` → session or null. Session: `id`, `status`, `createdAt`, `updatedAt`, `preSurveyProfile` (optional). Status one of: draft, in_progress, completed.
+- **Public interface:** `create(preSurveyProfile, clientId)` → session; `getById(id)` → session or null; `update(id, updates)` → session or null. Session: id, status, createdAt, updatedAt, preSurveyProfile (optional). Status: draft, in_progress, completed. GET sessions/:id/health is implemented by sessionsController.getHealth and returns assessmentService.getSessionHealth(id) (preGeneratedQuestions, questionsAsked, coverage, dimensionScores, interviewComplete, backgroundPregenRunning, etc.).
 - **Invariants:** Session id is a valid ULID (26 chars, Crockford base32). If clientId is provided and valid ULID, it is used as id; otherwise a new ULID is generated. At most one session per id in the Map.
 - **Internal vs external:** Storage is in-memory Map; may be replaced with a persistent store without changing the public interface. Callers must not rely on process lifetime.
 - **Stability:** Evolving. Adding optional session fields is allowed; changing id format or required fields is breaking.
@@ -28,41 +28,41 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 ### Assessment service (`src/services/assessmentService.js`)
 
-- **Purpose:** Store answers per session, maintain interview state (coverage, asked questions, dimension mapping), determine next question (LLM or static fallback), and expose assessment summary and progress.
-- **Public interface:** `submitAnswers(sessionId, payload)` → array of answers; `replaceAnswers(sessionId, payload)` → array of answers; `getAssessment(sessionId)` → assessment object (sessionId, answers, assessmentSummaries, coverageSummary, insights); `getNextQuestion(sessionId)` → `{ completed, nextQuestion, assessmentSummary?, progress }`. Progress: `questionsAsked`, `coveredDimensions`, `totalDimensions`, `percentComplete`.
-- **Invariants:** Answers are appended via submitAnswers; each answer can be tied to dimensions via `questionToDimension`. replaceAnswers replaces the full answer list and rebuilds coverage/dimension scores using the same logic as submitAnswers; it is only allowed when payload.answers length equals current answers (edit after completion). replaceAnswers does not advance the interview or trigger question generation (no getNextQuestion, no LLM, no pregen). Coverage is per dimension (aptitudes, traits, values, skills) with at least `questionCount` per dimension. Interview is complete when every dimension has at least `minSignalPerDimension` (config) or when `maxQuestions` (config) is reached. Next question has `id`, `title`, `type` (single_choice | multi_choice), `options`; id is assigned server-side (e.g. scenario_N). Optional env MIN_SIGNAL_PER_DIMENSION, MAX_INTERVIEW_QUESTIONS control completion; internal defaults used when not set.
-- **Internal vs external:** Coverage keys (aptitudes, traits, values, skills) and dimension types (aptitude, trait, value, skill) are part of the assessment model; changing them affects report and LLM. Callers (controllers, reportService) depend on getAssessment and getNextQuestion shape.
-- **Stability:** Evolving. Adding optional fields to progress or nextQuestion is allowed. Changing completion rules or dimension set is breaking for UI and report.
+- **Purpose:** Store answers per session, maintain interview state (coverage, asked questions, dimension mapping, dimensionScoresAggregate), determine next question (triangles: fixed set from dimension_triangles.json; scenarios: questionGeneration + pregen + store), and expose assessment and progress.
+- **Public interface:** `submitAnswers(sessionId, payload)` → array of answers; `replaceAnswers(sessionId, payload)` → array of answers (only when payload.answers.length === current length); `getAssessment(sessionId)` → assessment (sessionId, answers, assessmentSummaries, coverageSummary, insights, dimensionScores { traits, values }, askedQuestionsWithAnswers); `getNextQuestion(sessionId, bftUserId)` → Promise of `{ completed, nextQuestion, assessmentSummary?, progress }` or `{ serviceUnavailable, message, retryAfterSeconds, progress }`; `getSessionHealth(sessionId)` → health object or null. Progress: questionsAsked, coveredDimensions, totalDimensions, percentComplete. Next question: id, title, type (single_choice | multi_choice | rank | triangle), options (and for triangle: vertices, prompt, framing).
+- **Invariants:** submitAnswers appends answers; replaceAnswers replaces all answers and rebuilds coverage/dimension scores (same logic as submitAnswers); replaceAnswers is only allowed when payload.answers length equals current answer count. replaceAnswers does not advance the interview or trigger question generation. Triangle mode: one question per triangle from dimension_triangles.json; answer value is barycentric { a, b, c }; scores mapped to 1-5. Scenarios: interview complete when coverage meets minSignalPerDimension or maxQuestions reached; getNextQuestion may return serviceUnavailable when LLM and store both fail. dimensionScores in getAssessment are built from dimensionScoresAggregate (and synthetic fill when maxQuestions cap reached).
+- **Internal vs external:** Coverage keys and dimension types are part of the model. Callers depend on getAssessment and getNextQuestion response shape. bftUserId is used for question-store "used" tracking in scenarios mode.
+- **Stability:** Evolving. Adding optional fields is allowed. Changing completion rules, question types, or dimensionScores shape is breaking.
 
 ---
 
 ### Report service (`src/services/reportService.js`)
 
-- **Purpose:** Build the report for a session from template, assessment data, and LLM synthesis. Cache by session and answer count; recompute when answer count changes.
-- **Public interface:** `getReport(sessionId)` → report object. Report includes: `sessionId`, `status`, all keys from report template (see reportStructure), `coverageSummary`, `insights`, `strengthProfileSummaryLLM`, `profileByDimensions`, `strengthProfileSummaryHybrid`, `careerClusterAlignment`, `_meta` (generatedAt, answerCount).
-- **Invariants:** Report is built from getReportTemplate() plus session and assessment data. If cached report exists for same sessionId and answerCount, return cached; otherwise run synthesis (profile LLM, hybrid, recommendations) and cache. careerClusterAlignment has shape `{ recommended?, directionsToAvoid? }` when recommendations are enabled.
-- **Internal vs external:** Template section keys are defined in reportStructure; report payload uses both template keys and additional keys (e.g. strengthProfileSummaryLLM) for LLM output. UI and any consumer depend on the presence and shape of these top-level keys.
-- **Stability:** Evolving. Adding new optional report sections is allowed. Changing or removing existing keys is breaking for UI.
+- **Purpose:** Build the report for a session from template, assessment data, and optional LLM synthesis. Cache by session and answer count; invalidate on replaceAnswers.
+- **Public interface:** `getReport(sessionId, options)` → Promise of report; options.includeLlm (boolean) controls whether to run LLM synthesis (profile summary, hybrid). When includeLlm is false, returns core report only (dimensionScores, dimensionMeta, profileByDimensions from coverage, skillDevelopmentRoadmap). When includeLlm is true, runs synthesis and caches by answerCount. `invalidateReportCache(sessionId)` clears cache for that session (called by controller on replaceAnswers). Report includes sessionId, status, template keys, coverageSummary, insights, dimensionScores, dimensionMeta, profileByDimensions, strengthProfileSummaryLLM, strengthProfileSummaryHybrid, careerClusterAlignment, skillDevelopmentRoadmap, structuralDimensionMeta, _meta.
+- **Invariants:** Core report is always built from template and assessment. Cached full report is returned when sessionId and answerCount match. careerClusterAlignment is null in current implementation. Cache key is answer count only.
+- **Internal vs external:** Template from reportStructure; report adds LLM and hybrid keys. UI depends on dimensionScores, dimensionMeta, profileByDimensions, strengthProfileSummaryLLM, strengthProfileSummaryHybrid, skillDevelopmentRoadmap.
+- **Stability:** Evolving. Adding optional sections is allowed. Changing or removing existing keys is breaking for UI.
 
 ---
 
 ### Report structure (`src/lib/reportStructure.js`)
 
 - **Purpose:** Single source of truth for report section keys aligned with product description (Strength Profile, Career Clusters, etc.).
-- **Public interface:** `REPORT_SECTIONS` (array of section key strings); `getReportTemplate()` → object with each section key mapped to null.
-- **Invariants:** Report template is used as the base object for the report; actual report payload includes extra keys (e.g. strengthProfileSummaryLLM) not in REPORT_SECTIONS. REPORT_SECTIONS is the canonical list of “expected” sections; implementation may add synthetic keys for LLM output.
-- **Internal vs external:** Adding or renaming REPORT_SECTIONS affects reportService and any consumer that iterates sections. UI currently reads specific keys (e.g. strengthProfileSummaryLLM, careerClusterAlignment), not REPORT_SECTIONS.
-- **Stability:** Evolving. Consistency between REPORT_SECTIONS and actual report shape is not fully enforced in code; document any divergence.
+- **Public interface:** `getReportTemplate()` returns an object with each section key mapped to null. Section keys include strengthProfileSummary, coreAdvantageAreas, careerClusterAlignment, aiResilienceAnalysis, suggestedCollegeDirections, skillDevelopmentRoadmap, scenarioPlanning, backupPathStrategy.
+- **Invariants:** Template is the base for the report; report payload includes extra keys (strengthProfileSummaryLLM, strengthProfileSummaryHybrid, profileByDimensions, dimensionScores, dimensionMeta) not in the template. UI reads specific keys, not the section list.
+- **Internal vs external:** Changing section keys affects reportService. Document divergence between template and actual payload.
+- **Stability:** Evolving.
 
 ---
 
 ### Assessment model (`src/data/assessmentModel.js`)
 
-- **Purpose:** Load and expose the dimension model (aptitudes, traits, values, skills) from JSON in src/data. Provide flat list and by-type/by-id lookups.
-- **Public interface:** `load()` → cached object with `aptitudes`, `traits`, `values`, `skills`, and `*ById` Maps; `getAllDimensions()` → flat list with `dimensionType`, `dimensionId`, and item fields; `getDimension(dimensionType, dimensionId)` → item or null.
-- **Invariants:** Data files are in src/data (aptitudes.json, traits.json, values.json, skills.json). Each item has at least id, name; may have description, how_measured_or_observed, question_hints. dimensionType is singular (aptitude, trait, value, skill); coverage keys elsewhere use plurals (aptitudes, traits, values, skills).
-- **Internal vs external:** File paths are fixed relative to the module. Callers must not assume file names or location. Adding new fields to JSON is backward compatible.
-- **Stability:** Stable. Changing dimension ids or types breaks coverage and report synthesis.
+- **Purpose:** Load and expose the dimension model (aptitudes, traits, values, skills) from JSON in src/data. Provide flat list and by-type/by-id lookups. Triangle questions are not in this model; they are in dimension_triangles.json and loaded in assessmentService.
+- **Public interface:** `load()` → cached object with aptitudes, traits, values, skills and aptitudesById, traitsById, valuesById, skillsById, dimensionsById; `getAllDimensions()` → flat list with dimensionType, dimensionId, and item fields; `getDimension(dimensionType, id)` → item or null.
+- **Invariants:** Data files: dimension_aptitudes.json, dimension_traits.json, dimension_values.json, skills.json. Each item has at least id, name; may have description, how_measured_or_observed, question_hints, score_scale. dimensionType is singular; coverage keys use plurals (aptitudes, traits, values, skills).
+- **Internal vs external:** File paths are fixed relative to the module. Callers must not assume file names.
+- **Stability:** Stable. Changing dimension ids or types breaks coverage and report.
 
 ---
 
@@ -96,12 +96,62 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 ---
 
+### Question store (`src/services/questionStore.js`)
+
+- **Purpose:** File-based persistent store for generated questions keyed by profile; per-user "used" tracking so the same question is not reused for a user. When BFT_QUESTIONS_STORE_DIR is unset, save/list are no-ops and used tracking is in-memory only.
+- **Public interface:** `getProfileKey(preSurveyProfile)` → string (hash); `computeContentHash(question)` → string; `save(storeDir, profileKey, question, dimensionSet, assessmentSummary)`; `listByProfile(storeDir, profileKey)` → array of { question, dimensionSet, assessmentSummary, createdAt, contentHash }; `getUsedSet(storeDir, bftUserId)` → Set of contentHash; `markUsed(storeDir, bftUserId, contentHash)`.
+- **Invariants:** Profile key is stable for same preSurveyProfile. Content hash is from question title and option texts. Used set is persisted under storeDir/used/{bftUserId}. listByProfile returns items sorted by createdAt ascending.
+- **Internal vs external:** Directory layout and file naming are internal. assessmentService and questionGeneration depend on save/list/used for store-first and fallback.
+- **Stability:** Evolving. Used-set format and store layout may change with backward compatibility.
+
+---
+
+### Question generation (`src/services/questionGeneration/index.js`)
+
+- **Purpose:** Single entry point for requesting one scenario question: FIFO queue, then LLM with timeout, then store fallback. Used only when BFT_ASSESSMENT_MODE=scenarios.
+- **Public interface:** `requestQuestion(context)` → Promise of `{ question, dimensionSet?, assessmentSummary?, source: 'llm'|'store' }` or `{ question: null, reason: string }`. context: sessionId, bftUserId, preSurveyProfile, storeDir, desiredDimensionSet, askedQuestionTitles, answers.
+- **Invariants:** When storeFirst is true, try store then LLM; when false, try LLM then store. LLM timeout from config (BFT_QUESTION_LLM_TIMEOUT_MS). dimensionSet returned with each dimension having id (same as dimensionId). Returns null when LLM disabled and store has no unused match.
+- **Internal vs external:** Queue, timeout, and store selection logic are internal. assessmentService is the only caller; contract is requestQuestion in/out.
+- **Stability:** Evolving. Adding context fields or return fields is allowed; changing semantics is breaking.
+
+---
+
+### bftUserId middleware (`src/middleware/bftUserId.js`)
+
+- **Purpose:** Ensure req.bftUserId is set from cookie bft_uid, or generate and set a new ULID and set cookie. Used for question-store "used" tracking across sessions.
+- **Public interface:** `bftUserIdMiddleware(config)` → Express middleware. Sets req.bftUserId (string, ULID). Cookie: bft_uid, httpOnly, 1 year; sameSite none + secure in production, lax otherwise.
+- **Invariants:** If cookie missing or invalid (not 26-char Crockford base32), generate new ULID and set cookie. config.nodeEnv used for cookie options.
+- **Internal vs external:** Cookie name and options are internal. Controllers and assessmentService use req.bftUserId when calling getNextQuestion or question store.
+- **Stability:** Stable.
+
+---
+
+### Occupations (`src/controllers/occupationsController.js`, `src/lib/occupationService.js`)
+
+- **Purpose:** List occupations scored by selected skill IDs (from NOC 2021 enriched data); get single occupation by NOC code.
+- **Public interface (API):** GET `/occupations?skillIds=...&groupBy=category` → { groups: [ { categoryKey, categoryLabel, occupations } ] }; GET `/occupations/:nocCode` → single occupation. occupationService: list by skill IDs, optional groupByCategory; getByNocCode(nocCode).
+- **Invariants:** skillIds are from assessment model (skills.json). Match score from enriched NOC mappings. When groupByCategory is true, response is grouped; otherwise flat list.
+- **Internal vs external:** Data from noc-2021-enriched.json (or major groups). UI Careers/Recommendations use getOccupationsBySkillIds and getOccupationByNocCode.
+- **Stability:** Evolving.
+
+---
+
+### Feedback (`src/routes/feedback.js`, `src/controllers/feedbackController.js`)
+
+- **Purpose:** Append user feedback (rating, optional text) to a file (one JSON line per submission). Used by Feedback page.
+- **Public interface (API):** POST `/feedback` with body { rating (1-5), improve?, good? } → 201. Writes to BFT_FEEDBACK_FILE (path from config).
+- **Invariants:** rating required, 1-5. improve and good are optional strings. Each submission is one line (JSON) appended to file.
+- **Internal vs external:** File path from config. No reading of feedback in app; external tooling for analysis.
+- **Stability:** Stable.
+
+---
+
 ## bft-ui
 
 ### Survey API (`src/services/surveyApi.js`)
 
 - **Purpose:** HTTP client for session, assessment, and report. Base URL from app config (empty string when using dev proxy).
-- **Public interface:** `createSession(preSurveyProfile?)` → session; `submitAnswers(sessionId, answers)` → response; `replaceAnswers(sessionId, payload)` → response (PUT, for editing answers after completion; does not trigger next-question generation); `getNextQuestion(sessionId)` → next result; `getAssessment(sessionId)` → assessment; `getReport(sessionId)` → report. All return Promises; errors carry status and optional body.
+- **Public interface:** `createSession(preSurveyProfile?)` → session; `submitAnswers(sessionId, answers)` → response; `replaceAnswers(sessionId, payload)` → response (PUT, same-length answers; server rebuilds coverage/scores and invalidates report cache); `getNextQuestion(sessionId)` → next result (or serviceUnavailable); `getAssessment(sessionId)` → assessment; `getReport(sessionId, options)` → report (options.includeLlm: true for profile/recommendations pages, false/omit for core only); `getOccupationsBySkillIds(skillIds, groupByCategory)`; `getOccupationByNocCode(nocCode)`; `submitFeedback({ rating, improve?, good? })`. All return Promises; errors carry status and optional body.
 - **Invariants:** Base URL is appConfig.apiBaseUrl ?? ''; in dev with proxy, empty base yields relative /api. Request body is JSON; errors are thrown with message and status.
 - **Internal vs external:** Base URL and path construction are internal. Pages and components depend on function names and response shapes matching API.
 - **Stability:** Evolving. Must stay in sync with API routes and response shapes.
@@ -112,7 +162,7 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 - **Purpose:** Collect optional demographics and style/cluster answers; compute cluster profile; pass profile to main survey on completion. Persist progress in localStorage.
 - **Public interface:** PreSurveyWizard: `onComplete(profile)` with profile from `computeClusterProfile(questions, answers)`. Profile: `weights`, `dominant`, `secondaryTone`, `demographics`. Pre-survey questions from `src/data/pre_survey_questions.json`; structure includes intro_text, questions with id, type, options, scenario_clusters.
-- **Invariants:** Pre-survey has 5 questions (Q1–Q5). Cluster weights from Q3 and Q4 only (Q4 weighted 2×); Q5 sets secondaryTone; Q1/Q2 set demographics. Tone is always default (friendly but straightforward; no tone question). No scenario-settings question. Pre-survey state is not sent to API until user starts main survey (session create with preSurveyProfile).
+- **Invariants:** Pre-survey has 5 questions (Q1-Q5). Cluster weights from Q3 and Q4 only (Q4 weighted 2×); Q5 sets secondaryTone; Q1/Q2 set demographics. Tone is always default (friendly but straightforward; no tone question). No scenario-settings question. Pre-survey state is not sent to API until user starts main survey (session create with preSurveyProfile).
 - **Internal vs external:** Question set and weighting rules are in UI data and clusterProfile util. API expects preSurveyProfile on session create; shape must match what report and LLM expect (dominant, secondaryTone, demographics).
 - **Stability:** Evolving. Changing question ids or profile shape requires coordination with API and src/data (personality_clusters).
 
@@ -121,8 +171,8 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 ### Main survey and results flow
 
 - **Purpose:** Create session (with optional cluster profile), loop: get next question → submit answer → get next until completed; then navigate to results. Results and Recommendations pages fetch report by sessionId (from location state or sessionStorage).
-- **Public interface:** MainSurvey receives `clusterProfile`; creates session once; displays nextQuestion (id, title, type, options, maxSelections); submits answers as `[{ questionId, value }]`. On completion, stores sessionId in sessionStorage (RESULTS_SESSION_KEY) and navigates to /results. ResultsPage and RecommendationsPage resolve sessionId from location.state or sessionStorage, then getReport(sessionId).
-- **Invariants:** Session id is preserved for the whole main survey and for results/recommendations. Answer value: single value for single_choice, array for multi_choice; UI normalizes to API shape (questionId, value). Progress (questionsAsked, percentComplete, etc.) is displayed from getNextQuestion response.
+- **Public interface:** MainSurvey receives `clusterProfile`; creates session once; displays nextQuestion (id, title, type, options; type can be triangle with vertices/prompt). Submits answers as `[{ questionId, value }]` (value: string for single_choice, array for multi_choice/rank, { a, b, c } for triangle). On completion, stores sessionId in sessionStorage (RESULTS_SESSION_KEY) and navigates to /results. Results pages resolve sessionId from location.state or sessionStorage; getReport(sessionId, { includeLlm: true }) for profile/recommendations, core only for traits-values/skills. GET sessions/:id/health available for debug/pregen status.
+- **Invariants:** Session id is preserved for the whole survey and results. Answer value shape matches question type. Progress from getNextQuestion response. When getNextQuestion returns serviceUnavailable, UI may show retry message with retryAfterSeconds.
 - **Internal vs external:** RESULTS_SESSION_KEY and session resolution logic are duplicated in ResultsPage and RecommendationsPage. Contract with API: sessionId in path; answers and report shapes as defined in API.
 - **Stability:** Evolving. Session handoff and storage strategy may change; sessionId must remain the single key for report access.
 
