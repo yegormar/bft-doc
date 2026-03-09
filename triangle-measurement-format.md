@@ -114,13 +114,15 @@ No extra logic in the code differentiates gain and loss for the math; both use `
 
 ---
 
-## 8. Final Dimension Score Output
+## 8. Final Dimension Score Output (triangle mode: Bayesian scorer)
 
-- When building the assessment or report, `buildDimensionScoresOutput(aggregate, model)` turns the aggregate into the list of dimension scores returned to the client.
-- For each dimension id with `count >= 1`:
-  - `mean = entry.sum / entry.count`
-  - `band`: `mean <= 2` → `"low"`, `mean >= 4` → `"high"`, else `"medium"`
-- Each item in the output includes: `id`, `name`, `mean`, `band`, `count`.
+- In **triangle mode**, dimension scores are produced by the **Bayesian latent-trait scorer** (`bft-api/src/lib/bayesianTriangleScorer.js`), not by simple average of per-triangle scores.
+- The scorer fits one latent strength (theta) per dimension using all triangle responses jointly:
+  - **Dirichlet likelihood** with zone-aware concentration (corner, near_corner, edge, near_edge, centre).
+  - **Rejection term**: low-weight vertices (< 0.15) add explicit evidence that that dimension is weaker than the dominant one.
+- Inference: Metropolis-Hastings MCMC. Scores are mapped from posterior mean theta to [1, 5] preserving rank order.
+- Output shape is unchanged: `{ traits: [], values: [], aptitudes: [] }` with `id`, `name`, `mean`, `band`, `count`. Band: `mean <= 2` → `"low"`, `mean >= 4` → `"high"`, else `"medium"`.
+- The in-memory aggregate (sum/count) is still updated when answers are submitted (for compatibility); the **returned** dimension scores in getAssessment and getSessionHealth come from the Bayesian scorer when there is at least one triangle answer.
 
 ---
 
@@ -143,7 +145,8 @@ No extra logic in the code differentiates gain and loss for the math; both use `
 | Serve triangle, build dimensionSet    | `bft-api/src/services/assessmentService.js`: `getNextTriangleQuestion`, `triangleToDimensionSet`                      |
 | Apply answer, normalize, score        | `bft-api/src/services/assessmentService.js`: `applyOneAnswerToState` (triangle branch), `TRIANGLE_SCORE_SCALE`        |
 | Add to aggregate                      | `bft-api/src/services/assessmentService.js`: `addDimensionScoresToAggregate`                                          |
-| Build output (mean, band)             | `bft-api/src/services/assessmentService.js`: `buildDimensionScoresOutput`                                             |
+| Triangle mode: dimension scores       | `bft-api/src/lib/bayesianTriangleScorer.js`: `scoreTriangleResponses` (zone-aware Dirichlet + rejection, MCMC)       |
+| Build output (mean, band)             | `bft-api/src/services/assessmentService.js`: `buildDimensionScoresForAssessment`, `buildDimensionScoresOutputFromBayesian` |
 | UI: pointer to barycentric            | `bft-ui/src/components/Discovery/TriangleQuestion.jsx`: `cartesianToBarycentric`, `clampBarycentric`, `handlePointer` |
 | UI: submit value                      | `bft-ui/src/components/Discovery/MainSurvey.jsx`: payload `value` as `{ a, b, c }`                                    |
 
