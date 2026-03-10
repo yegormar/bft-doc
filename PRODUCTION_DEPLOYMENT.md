@@ -138,12 +138,14 @@ rsync -a --exclude node_modules --exclude .env bft-api/ root@YOUR_SERVER:/opt/bf
 
 This fills `/opt/bft/bft_api/` on the server (excluding local `node_modules` and `.env`; you will create `.env` on the server in 5.2).
 
-**Step B – On the server** (SSH in, then):
+**Step B – On the server** (SSH in, then). **Required:** this installs dependencies (e.g. `mathjs`, `express`). Without it you get `Cannot find module 'mathjs'` or similar.
 
 ```bash
 cd /opt/bft/bft_api
 npm ci --omit=dev
 ```
+
+After any deploy that updates `package.json` or replaces files in `/opt/bft/bft_api/`, run `npm ci --omit=dev` again in that directory, then restart the service.
 
 ### 5.2 Production .env
 
@@ -297,7 +299,16 @@ In the browser: open `https://buildtomorrow.duckdns.org:51123`, complete a short
 **Updates:**
 
 - **UI:** Rebuild with `.env.production`, then `rsync -a dist/ user@server:/opt/bft/bft_ui/`.
-- **API:** Pull or rsync code, `npm ci` if needed, then `sudo systemctl restart bft-api`.
+- **API:** Rsync code (keep `--exclude node_modules`), then **on the server** run `cd /opt/bft/bft_api && npm ci --omit=dev`, then `sudo systemctl restart bft-api`.
+
+**Troubleshooting: `Cannot find module 'mathjs'` (or similar)**  
+Dependencies were not installed in the API directory. On the server run:
+
+```bash
+cd /opt/bft/bft_api
+npm ci --omit=dev
+sudo systemctl restart bft-api
+```
 
 ---
 
