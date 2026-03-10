@@ -10,10 +10,12 @@
 
 ### What the page shows
 
-- Two text blocks only:
-  1. **"Your discovered strengths and profile"** – `report.strengthProfileSummaryLLM` (if present).
-  2. **"Another view of your profile"** or same heading – `report.strengthProfileSummaryHybrid` (if present).
-- No dimensions, no Q&A, no skills, no pretest profile. If both LLM calls fail or are disabled, the page shows: "No profile summary yet."
+- One narrative block: **"Your discovered strengths and profile"** – `report.profileSummary` (if present). The LLM is prompted to output three sections:
+  1. **Your personality at a glance** – horoscope-style, insight about how their strengths show up.
+  2. **Study paths that could suit you** – 3–5 study directions with short rationale.
+  3. **Careers and opportunities that could benefit you most** – 3–5 career clusters with short rationale.
+- The LLM may use basic HTML for structure: `<h2>`, `<h3>`, `<b>`, `<table>`, `<tr>`, `<td>`, `<th>`. The UI sanitizes and renders this HTML; other tags are stripped.
+- No dimensions, no Q&A, no skills, no pretest profile on the page. If the LLM call fails or is disabled, the page shows: "No profile summary yet."
 
 ### Limitations
 
@@ -77,7 +79,7 @@ This connects Profile Summary to Skills and careers without duplicating the full
 
 ### 6. Fallback when LLM is missing or fails
 
-- If `report.strengthProfileSummaryLLM` and `report.strengthProfileSummaryHybrid` are both null:
+- If `report.profileSummary` is null:
   - Fetch **payload** (if not already fetched).
   - Show a **structured fallback**:
     - “Your top dimensions” from payload.dimensions (e.g. top 5 by mean).

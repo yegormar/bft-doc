@@ -171,14 +171,10 @@ LLM_TOP_P=0.9
 # Prompts (paths relative to project root)
 LLM_SYSTEM_PROMPT_FILE=conf/assessment_system_prompt.txt
 LLM_REPORT_PROFILE_SYSTEM_PROMPT_FILE=conf/report_profile_system_prompt.txt
-LLM_REPORT_HYBRID_SYSTEM_PROMPT_FILE=conf/report_hybrid_system_prompt.txt
-# Careers on the Recommendations page: set this to enable career directions and directions-to-avoid
-LLM_REPORT_RECOMMENDATIONS_SYSTEM_PROMPT_FILE=conf/report_recommendations_system_prompt.txt
 ```
 
 - **PORT:** Must be free on the server (e.g. **8081**). Nginx will proxy to `http://127.0.0.1:8081`.
 - **CORS_ORIGIN:** Exactly the origin the browser uses—same as `VITE_API_BASE_URL` (public port, e.g. 51123).
-- **Careers:** If `LLM_REPORT_RECOMMENDATIONS_SYSTEM_PROMPT_FILE` is not set, the Careers/Recommendations page will show “careers will appear once generated.” Set it as above (the file exists in `conf/`), restart the API, then refresh the Results page or run a new discovery so the report is regenerated with career recommendations.
 
 ---
 

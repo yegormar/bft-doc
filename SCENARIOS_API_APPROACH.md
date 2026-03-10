@@ -95,8 +95,6 @@ There is **no AVOID line**. Previously, an "AVOID: ... Do not use these framings
 | scenario_step2_judge.txt | Hardcoded in code | No; fallback if missing |
 | scenario_step3.txt | `BFT_SCENARIO_STEP3_INSTRUCTIONS_FILE` | Yes; must exist |
 | report_profile_system_prompt.txt | `LLM_REPORT_PROFILE_SYSTEM_PROMPT_FILE` | Yes (required by config/llm) |
-| report_hybrid_system_prompt.txt | `LLM_REPORT_HYBRID_SYSTEM_PROMPT_FILE` | Yes |
-| report_recommendations_system_prompt.txt | `LLM_REPORT_RECOMMENDATIONS_SYSTEM_PROMPT_FILE` | Yes |
 
 Paths in `.env` are relative to the bft-api project root. No fallback to `conf/legacy/` or any other path.
 

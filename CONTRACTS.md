@@ -39,9 +39,9 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 ### Report service (`src/services/reportService.js`)
 
 - **Purpose:** Build the report for a session from template, assessment data, and optional LLM synthesis. Cache by session and answer count; invalidate on replaceAnswers.
-- **Public interface:** `getReport(sessionId, options)` → Promise of report; options.includeLlm (boolean) controls whether to run LLM synthesis (profile summary, hybrid). When includeLlm is false, returns core report only (dimensionScores, dimensionMeta, profileByDimensions from coverage, skillDevelopmentRoadmap). When includeLlm is true, runs synthesis and caches by answerCount. `invalidateReportCache(sessionId)` clears cache for that session (called by controller on replaceAnswers). Report includes sessionId, status, template keys, coverageSummary, insights, dimensionScores, dimensionMeta, profileByDimensions, strengthProfileSummaryLLM, strengthProfileSummaryHybrid, careerClusterAlignment, skillDevelopmentRoadmap, structuralDimensionMeta, _meta.
+- **Public interface:** `getReport(sessionId, options)` → Promise of report; options.includeLlm (boolean) controls whether to run LLM synthesis (profile summary). When includeLlm is false, returns core report only (dimensionScores, dimensionMeta, profileByDimensions from coverage, skillDevelopmentRoadmap). When includeLlm is true, runs synthesis and caches by answerCount. `invalidateReportCache(sessionId)` clears cache for that session (called by controller on replaceAnswers). Report includes sessionId, status, template keys, coverageSummary, insights, dimensionScores, dimensionMeta, profileByDimensions, profileSummary, careerClusterAlignment, skillDevelopmentRoadmap, structuralDimensionMeta, _meta.
 - **Invariants:** Core report is always built from template and assessment. Cached full report is returned when sessionId and answerCount match. careerClusterAlignment is null in current implementation. Cache key is answer count only.
-- **Internal vs external:** Template from reportStructure; report adds LLM and hybrid keys. UI depends on dimensionScores, dimensionMeta, profileByDimensions, strengthProfileSummaryLLM, strengthProfileSummaryHybrid, skillDevelopmentRoadmap.
+- **Internal vs external:** Template from reportStructure; report adds profileSummary from LLM. UI depends on dimensionScores, dimensionMeta, profileByDimensions, profileSummary, skillDevelopmentRoadmap.
 - **Stability:** Evolving. Adding optional sections is allowed. Changing or removing existing keys is breaking for UI.
 
 ---
@@ -49,8 +49,8 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 ### Report structure (`src/lib/reportStructure.js`)
 
 - **Purpose:** Single source of truth for report section keys aligned with product description (Strength Profile, Career Clusters, etc.).
-- **Public interface:** `getReportTemplate()` returns an object with each section key mapped to null. Section keys include strengthProfileSummary, coreAdvantageAreas, careerClusterAlignment, aiResilienceAnalysis, suggestedCollegeDirections, skillDevelopmentRoadmap, scenarioPlanning, backupPathStrategy.
-- **Invariants:** Template is the base for the report; report payload includes extra keys (strengthProfileSummaryLLM, strengthProfileSummaryHybrid, profileByDimensions, dimensionScores, dimensionMeta) not in the template. UI reads specific keys, not the section list.
+- **Public interface:** `getReportTemplate()` returns an object with each section key mapped to null. Section keys include coreAdvantageAreas, careerClusterAlignment, aiResilienceAnalysis, suggestedCollegeDirections, skillDevelopmentRoadmap, scenarioPlanning, backupPathStrategy.
+- **Invariants:** Template is the base for the report; report payload includes extra keys (profileSummary, profileByDimensions, dimensionScores, dimensionMeta) not in the template. UI reads specific keys, not the section list.
 - **Internal vs external:** Changing section keys affects reportService. Document divergence between template and actual payload.
 - **Stability:** Evolving.
 
@@ -88,10 +88,10 @@ This document describes the purpose, public interfaces, invariants, and stabilit
 
 ### Report synthesis (`src/lib/reportSynthesis.js`)
 
-- **Purpose:** Generate report sections using LLM: profile summary from full insights, hybrid summary from coverage, profession recommendations from profile and AI relevance ranking.
-- **Public interface:** `generateProfileSummaryLLM(insights, preSurveyProfile)` → string or null; `generateProfileSummaryHybrid(coverage, model)` → `{ profileByDimensions, strengthProfileSummaryHybrid }`; `generateProfessionRecommendations(profileSummary, profileByDimensions, preSurveyProfile)` → `{ recommended, directionsToAvoid }` or null. Helpers: `getExploredDimensionsFromCoverage`, `loadAiRelevanceRanking`, `getRankingEntriesForExploredDimensions`.
-- **Invariants:** All functions may return null or empty when LLM is disabled or prompt not set. profileByDimensions has keys aptitudes, traits, values, skills (arrays of { id, name }). recommended/directionsToAvoid are normalized (fit: high|medium|low; capped counts). AI relevance ranking is in src/data/ai_relevance_ranking.json; trait_id in ranking refers to dimension id in assessment model.
-- **Internal vs external:** Prompt construction and normalization are internal. reportService depends on return shapes. Changing explored-dimension or recommendation shape breaks report and UI.
+- **Purpose:** Generate report sections using LLM: profile summary from full session payload (one call).
+- **Public interface:** `getExploredDimensionsFromCoverage(coverage, model)` → `{ aptitudes, traits, values, skills }` (arrays of { id, name }); `generateProfileSummaryFromPayload(payload)` → string or null.
+- **Invariants:** generateProfileSummaryFromPayload returns null when LLM is disabled or prompt not set. profileByDimensions from getExploredDimensionsFromCoverage has keys aptitudes, traits, values, skills.
+- **Internal vs external:** Prompt is loaded from config (report_profile_system_prompt.txt). reportService depends on return shapes.
 - **Stability:** Evolving. Adding optional fields is allowed; changing existing shapes is breaking.
 
 ---

@@ -62,9 +62,9 @@ Known design flaws, compromises, and their impact. No speculation beyond what th
 
 ## 5. Report template vs actual report payload
 
-**What:** reportStructure.js defines REPORT_SECTIONS (e.g. strengthProfileSummary, careerClusterAlignment). The actual report object includes additional keys (e.g. strengthProfileSummaryLLM, strengthProfileSummaryHybrid, profileByDimensions) that are not in REPORT_SECTIONS. Template initializes sections to null; reportService overlays synthesis results and _meta.
+**What:** reportStructure.js defines REPORT_SECTIONS (e.g. careerClusterAlignment, skillDevelopmentRoadmap). The actual report object includes additional keys (e.g. profileSummary, profileByDimensions) that are not in REPORT_SECTIONS. Template initializes sections to null; reportService overlays synthesis results and _meta.
 
-**Why:** REPORT_SECTIONS reflects the product list of sections; implementation added distinct keys for LLM vs hybrid summary and for structured profile data.
+**Why:** REPORT_SECTIONS reflects the product list of sections; implementation added distinct keys for profile summary and structured profile data.
 
 **Impact:** REPORT_SECTIONS is not the full set of keys the UI or consumers use. Iterating REPORT_SECTIONS would miss LLM/hybrid-specific keys. Risk of confusion when adding new sections.
 
