@@ -36,12 +36,12 @@ curl -s "http://localhost:3000/api/dev/session/export/YOUR_SESSION_ID" > session
 Restore a session from a previously exported blob.
 
 - **Request:** `POST /api/dev/session/restore`
-- **Body:** JSON with either:
-  - `{ "export": <exported blob> }` – restores under the original session id, or
-  - `{ "export": <exported blob>, "targetSessionId": "NEW_ULID" }` – restores under a new id (e.g. to clone a session)
+- **Body:** JSON:
+  - `{ "export": <exported blob> }` – overwrites the **original** session id (from the export) with the export data.
+  - `{ "export": <exported blob>, "targetSessionId": "<ULID>" }` – overwrites the session with id `targetSessionId` with the export data. Use this to say which session to overwrite (e.g. the one currently open in the UI).
 - **Response:** `201` with `{ "sessionId", "session" }`
 
-Example (restore from file):
+Example (restore, overwriting the original session):
 
 ```bash
 curl -s -X POST "http://localhost:3000/api/dev/session/restore" \
@@ -50,12 +50,12 @@ curl -s -X POST "http://localhost:3000/api/dev/session/restore" \
   | jq
 ```
 
-Example (restore into a new session id):
+Example (restore, overwriting a specific session by id):
 
 ```bash
 curl -s -X POST "http://localhost:3000/api/dev/session/restore" \
   -H "Content-Type: application/json" \
-  -d "{\"export\": $(cat session-backup.json), \"targetSessionId\": \"01JBXYZ0000000000000000000\"}" \
+  -d "{\"export\": $(cat session-backup.json), \"targetSessionId\": \"SESSION_ID_TO_OVERWRITE\"}" \
   | jq
 ```
 

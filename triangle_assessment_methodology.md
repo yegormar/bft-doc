@@ -95,6 +95,73 @@ score = (coordinate × 4) + 1
 
 When a dimension appears in more than one triangle, scores are averaged across all placements to produce a final dimension score. Dimensions measured with both gain and loss framing are averaged across both.
 
+Interpreting a single placement as three separate scores (e.g. "A = medium 2.33, B = medium 2.33, C = medium 2.33") is misleading. The position on the triangle carries zone-based meaning: where the ball sits (edge, near-edge, centre, near-corner, corner) and whether a vertex is explicitly rejected matter as much as the raw numbers. The following section describes how placements should be interpreted.
+
+---
+
+## Interpreting Placements: Zones and the Rejection Signal
+
+The ball's position is not just three coordinates. It encodes **where** you placed the ball (the zone) and **which vertex you excluded** (rejection). Treating a low coordinate as "a small preference" is wrong: a near-zero weight is an explicit rejection (that dimension is not part of your thinking), not a weak score.
+
+### Edge Zone: Ball on the line between two vertices
+
+Example: Ball halfway between mastery and recognition, with collaboration near zero.
+
+You are saying three things simultaneously:
+
+"I genuinely blend these two" - both mastery and recognition feel true
+"The balance between them matters but I can't separate them" - they're both activated
+"Collaboration is simply off the table" - not a weak preference, a closed door
+
+The model must treat the third as its own piece of evidence: an explicit rejection, not just a low score.
+
+### Near-Edge Zone: Ball close to an edge but not perfectly on it
+
+Example: Ball at (0.55, 0.38, 0.07), somewhere between A and B but drifting toward A.
+
+You are saying four things:
+
+"A is my primary instinct" - it gets the most weight
+"B is genuinely in play" - not dismissed, clearly present
+"A and B feel connected in this context" - you couldn't fully separate them
+"C is not part of my thinking at all" - the 0.07 is not a weak preference, it's an absence
+
+The near-edge placement tells the model that C is excluded even though you were not fully committed to either A or B alone.
+
+### Centre Zone: Ball left near the middle
+
+Example: Ball at (0.38, 0.35, 0.27), roughly central, slightly toward A.
+
+You are saying something much weaker:
+
+"All three feel somewhat relevant" - no strong pull in any direction
+"A edges it slightly" - but barely
+"Nothing here is excluded" - even C at 0.27 is still in the picture
+
+The centre is the least informative placement. No vertex is being rejected. The model treats this as weak evidence across all three (low zone concentration). You are not telling the model much.
+
+### Near-Corner Zone: Ball close to a vertex but not quite there
+
+Example: Ball at (0.65, 0.28, 0.07), clearly toward A but not fully committed.
+
+You are saying:
+
+"A is my dominant instinct" - clearly, but with some hesitation
+"B is present but secondary" - you didn't reject it completely
+"C is rejected" - the 0.07 is an exclusion, not a preference
+
+The tension between A and B is informative: you moved toward A strongly but left meaningful weight on B (A and B may feel connected, or you were pulled between them before A won). C is excluded just as clearly as in a full corner placement.
+
+### Summary: Rejection vs weak preference
+
+| Situation | Wrong interpretation | Right interpretation |
+|-----------|----------------------|----------------------|
+| One vertex under 0.15 weight | "Low affinity for that dimension" | Explicit rejection: that dimension is not in play |
+| Ball on edge between A and B | "A and B both medium" | A and B blended; the third vertex is excluded |
+| Ball near centre | "All three medium" | Weak evidence; nothing excluded; low information |
+
+Scoring and reporting (including "How this was interpreted" on the results page) must use zone-based language and call out excluded vertices, instead of reducing every placement to three band labels.
+
 ---
 
 ## Triangle Design Principles
