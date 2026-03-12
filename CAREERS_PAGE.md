@@ -5,7 +5,7 @@ The Careers page is **data-model-driven** and does **not** use an LLM for recomm
 ## Data flow
 
 1. **Dimensions to skills**  
-   Measured traits and values (from discovery) are mapped to skills via the existing model (`related_skill_clusters` in dimension data). The report’s `skillDevelopmentRoadmap` provides skills with an **applicability** score (match to the user’s dimensions).
+   Measured traits and values (from discovery) are mapped to skills via the existing model (`related_skill_clusters` in dimension data). The report’s `skillDevelopmentRoadmap` provides skills with an **applicability** score: fit to the user’s dimensions only (mean and band; no AI relevance in this number). So when the user gave no preference (all measurements 3), all skills that have at least one linked dimension get the same applicability. AI relevance (e.g. “Demand Grows”) is shown separately and is not part of applicability.
 
 2. **Skills to time-investment buckets**  
    The user assigns skills to three buckets: **Low time investment**, **Medium time investment**, **High time investment** (high = “I will be studying hard”). Assignment is by drag-and-drop; there is no default by skill property.

@@ -17,7 +17,7 @@ Canonical description of the Home page for Built for Tomorrow. Keeps the UI and 
 
 1. **Hero**
    - Title: "Built for Tomorrow"
-   - Tagline: "Find your strengths. See where they take you."
+   - Tagline: "Find your strengths. See where it takes you."
    - One short paragraph: "Discover your strengths, explore professions and skills, and see where to invest your time. No sign-up. No one right path."
    - Primary CTA: "Start discovery" (links to /discovery). Aria-label: "Start your discovery journey".
 
