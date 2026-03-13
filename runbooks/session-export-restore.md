@@ -2,15 +2,15 @@
 
 Session export and restore is for **development and debugging only**. It is not part of the UI.
 
-## Enable
+## Enable (default: on)
 
-Set in `.env`:
+Session export/restore is **on by default**. To disable it, set in `.env`:
 
 ```bash
-BFT_DEV_SESSION_EXPORT=1
+BFT_DEV_SESSION_EXPORT=0
 ```
 
-If this variable is not set or not `1`, the export/restore endpoints are not registered.
+or `BFT_DEV_SESSION_EXPORT=false`. If the variable is unset or any other value, the export/restore endpoints are registered.
 
 ## Export
 

@@ -2,15 +2,15 @@
 
 Dev/debug only. Full description: [session-export-restore.md](./session-export-restore.md).
 
-## Enable
+## Enable (default: on)
 
-In `.env`:
+Export/restore is on by default. To **disable** it, set in `.env`:
 
 ```
-BFT_DEV_SESSION_EXPORT=1
+BFT_DEV_SESSION_EXPORT=0
 ```
 
-Restart the API after changing.
+(or `false`). Restart the API after changing.
 
 ---
 
